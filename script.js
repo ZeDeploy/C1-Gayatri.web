@@ -144,27 +144,46 @@ form.addEventListener("submit", (e) => {
   update();
 })();
 
-// Scroll-reveal animation for cards and section blocks (services cards are
-// excluded — they follow the scroll-scrub in the section above instead)
-const revealTargets = Array.from(
-  document.querySelectorAll(".cards-grid > article, .about-list, .hero-card, .contact-form")
-).filter((el) => !el.closest("#services"));
-revealTargets.forEach((el) => el.classList.add("reveal"));
+(function () {
+  const scrollSection = document.getElementById("scroll-section");
+  if (!scrollSection) return;
 
-if ("IntersectionObserver" in window) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("visible");
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.15 }
-  );
-  revealTargets.forEach((el) => observer.observe(el));
-} else {
-  // Fallback: show everything immediately
-  revealTargets.forEach((el) => el.classList.add("visible"));
-}
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const cards = Array.from(scrollSection.querySelectorAll(".service-card"));
+  if (!cards.length) return;
+
+  let currentScrollProgress = 0;
+  let targetScrollProgress = 0;
+
+  // The cards are visible by default (centered, scale 1, opacity 1).
+  // As you scroll, they expand outward from the center while staying visible,
+  // so the section always shows content instead of tiny/invisible cards.
+  const expansionRadius = 380; // Distance from center in pixels
+  const cardAngles = [0, 60, 120, 180, 240, 300];
+
+  function lerp(start, end, factor) {
+    return start + (end - start) * factor;
+  }
+
+  function animate() {
+    const rect = scrollSection.getBoundingClientRect();
+    const windowHeight = window.innerHeight;
+    const sectionHeight = rect.height || 1;
+    const visibleSpan = sectionHeight - windowHeight;
+
+    // 0 when the section top reaches the top of the viewport,
+    // 1 when the section bottom reaches the bottom of the viewport.
+    let rawProgress = visibleSpan > 0 ? (-rect.top) / visibleSpan : 0;
+    rawProgress = Math.max(0, Math.min(1, rawProgress));
+    targetScrollProgress = rawProgress;
+
+    currentScrollProgress = lerp(currentScrollProgress, targetScrollProgress, 0.08);    cards.forEach((card, index) => {      const angleRad = (cardAngles[index] * Math.PI) / 180;      const easeProgress = Math.pow(currentScrollProgress, 1.5);      const xPos = Math.cos(angleRad) * (expansionRadius * easeProgress);      const yPos = Math.sin(angleRad) * (expansionRadius * easeProgress);
+      // Center the card in the middle of the container, then move it outward      // from center as you scroll through the section.      card.style.transform = `translate(calc(-50% + ${xPos}px), calc(-50% + ${yPos}px)) scale(1)`;      card.style.opacity = 1;    });
+
+    requestAnimationFrame(animate);
+  }
+
+  // Start the animation loop if motion is allowed.
+  if (!reduceMotion) animate();
+})();
