@@ -1,4 +1,4 @@
-/* Tiny dependency-free static server for the BrightSmile landing page. */
+/* Tiny dependency-free static server for the Dr Gayatri's Dental Clinic landing page. */
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");

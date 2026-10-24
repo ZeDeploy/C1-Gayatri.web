@@ -1,4 +1,4 @@
-/* BrightSmile Dental Clinic — interactions */
+/* Dr Gayatri's Dental Clinic — interactions */
 
 // Current year in footer
 document.getElementById("year").textContent = new Date().getFullYear();
@@ -45,98 +45,75 @@ form.addEventListener("submit", (e) => {
   form.reset();
 });
 
-// Services 3D perspective flip scroll animation
-// Cards flip from a hidden 3D state (rotateX/Y skewed, pushed back and down)
-// to their flat final state as the user scrolls through the section.
-// The animation is driven by scroll progress (--cp) for the whole block and
-// by each card's own scroll progress for the flip. Reversible on scroll-back.
+// Sticky 3D Card Stack Animation for Services Section
 (function () {
-  const services = document.getElementById("services");
-  if (!services || !services.classList.contains("cards-3d")) return;
+  const wrappers = document.querySelectorAll("#services .card-wrapper");
+  const cards = document.querySelectorAll("#services .card");
+
+  if (!wrappers.length || !cards.length) return;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduceMotion) {
-    const cards = services.querySelectorAll(".card");
-    cards.forEach((c) => {
-      c.style.setProperty("--cp", "1");
+    cards.forEach((card) => {
+      card.style.transform = "none";
+      card.style.opacity = "1";
+      card.style.filter = "none";
     });
-    const media = services.querySelector(".services-media");
-    if (media) {
-      media.style.setProperty("--bg-shift", "0");
-      media.style.setProperty("--bg-scale", "1.15");
-    }
     return;
   }
 
-  const cards = services.querySelectorAll(".card");
-  if (!cards.length) return;
+  function updateCardStack() {
+    const pinTop = window.innerHeight * 0.14; // Matches CSS 'top: 14vh'
+    const start = window.innerHeight; // When next card enters viewport bottom
 
-  const SHIFT = 180;   // max px the whole block travels with scroll
-  const ZOOM = 0.18;   // extra scale gained while scrolling through the section
-  let ticking = false;
+    wrappers.forEach((wrapper, index) => {
+      // Last card remains unscaled/untransformed as the active top card
+      if (index === wrappers.length - 1) {
+        cards[index].style.transform = "translate3d(0, 0, 0) scale(1)";
+        cards[index].style.opacity = "1";
+        cards[index].style.filter = "none";
+        return;
+      }
 
-  // Each card's own 3D animation progress uses the card's bounding rect so
-  // the flip plays out while that card is actually on-screen.
-  function cardProgress(top, vh) {
-    // 0 while the card's top is below ~88% of the screen height, 1 once it
-    // has risen to ~35% — so the flip plays out fully while the card is visible.
-    let cp = (vh * 0.88 - top) / (vh * 0.88 - vh * 0.35);
-    return Math.min(1, Math.max(0, cp));
-  }
+      // Calculate how much subsequent cards cover this card (supports full multi-card deck stacking)
+      let totalProgress = 0;
+      for (let j = index + 1; j < wrappers.length; j++) {
+        const nextRect = wrappers[j].getBoundingClientRect();
+        let p = (start - nextRect.top) / (start - pinTop);
+        p = Math.min(Math.max(p, 0), 1);
+        totalProgress += p;
+      }
 
-  function cardIndex(card) {
-    const idx = Array.prototype.indexOf.call(cards, card);
-    return idx;
-  }
+      // Scale down slightly, dim, and blur as cards stack over it
+      const scale = Math.max(0.84, 1 - totalProgress * 0.045);
+      const opacity = Math.max(0.4, 1 - totalProgress * 0.15);
+      const blur = Math.min(5, totalProgress * 1.5);
+      const translateY = -totalProgress * 22; // Shifts up to leave a visible stepped deck tab
 
-  function ease(t) { return t * t * (3 - 2 * t); }
-
-  // Scroll progress: 0 when the section's top enters the viewport,
-  // 1 once it is ~60% scrolled through the screen.
-  function progress() {
-    const rect = services.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const span = vh + rect.height * 0.6;
-    let p = (vh - rect.top) / span;
-    return Math.min(1, Math.max(0, p));
-  }
-
-  function update() {
-    ticking = false;
-    const p = ease(progress());
-
-    // Background media layer: +SHIFT px while entering -> -SHIFT px while
-    // leaving, plus a gentle zoom-in, synced with the overall section scroll.
-    const media = services.querySelector(".services-media");
-    if (media) {
-      media.style.setProperty("--bg-shift", ((0.5 - p) * 2 * SHIFT).toFixed(1) + "px");
-      media.style.setProperty("--bg-scale", (1.15 + p * ZOOM).toFixed(3));
-    }
-
-    // 3D perspective flip scroll animation for each card:
-    // Each card gets its own --cp (0..1) from its bounding rect so the flip
-    // plays out fully while that specific card is visible, with a natural
-    // ease-out (1 - (1 - cp)^3) so the flip feels quick but gentle.
-    // Cards start flipped away (cp 0) and flatten in (cp 1) as they scroll in.
-    cards.forEach((card) => {
-      const idx = cardIndex(card);
-      const top = card.getBoundingClientRect().top;
-      const vh = window.innerHeight;
-      let cp = cardProgress(top, vh);
-      cp = 1 - Math.pow(1 - cp, 3);     // ease-out
-      card.style.setProperty("--cp", cp.toFixed(3));
-      card.style.setProperty("--card-index", String(idx));
+      cards[index].style.transform = `translate3d(0, ${translateY.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+      cards[index].style.opacity = opacity.toFixed(3);
+      cards[index].style.filter = blur > 0.1 ? `blur(${blur.toFixed(1)}px)` : "none";
     });
   }
 
-  window.addEventListener("scroll", function () {
-    if (!ticking) {
-      ticking = true;
-      requestAnimationFrame(update);
-    }
-  }, { passive: true });
-  window.addEventListener("resize", update, { passive: true });
-  update();
+  // Attach listener with requestAnimationFrame for smooth 60fps performance
+  let ticking = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateCardStack();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    },
+    { passive: true }
+  );
+
+  window.addEventListener("resize", updateCardStack, { passive: true });
+  updateCardStack();
 })();
 
 // Scroll-reveal animation for cards and section blocks (services cards are
