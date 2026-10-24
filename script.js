@@ -63,6 +63,16 @@ form.addEventListener("submit", (e) => {
   }
 
   function updateCardStack() {
+    // Disable sticky scroll animation on mobile view (<= 768px)
+    if (window.innerWidth <= 768) {
+      cards.forEach((card) => {
+        card.style.transform = "none";
+        card.style.opacity = "1";
+        card.style.filter = "none";
+      });
+      return;
+    }
+
     const pinTop = window.innerHeight * 0.14; // Matches CSS 'top: 14vh'
     const start = window.innerHeight; // When next card enters viewport bottom
 
@@ -119,7 +129,7 @@ form.addEventListener("submit", (e) => {
 // Scroll-reveal animation for cards and section blocks (services cards are
 // excluded — they follow the scroll-scrub in the section above instead)
 const revealTargets = Array.from(
-  document.querySelectorAll(".cards-grid > article, .about-list, .hero-card, .contact-form")
+  document.querySelectorAll(".cards-grid > article, .about-list, .hero-image-wrapper, .contact-form")
 ).filter((el) => !el.closest("#services"));
 revealTargets.forEach((el) => el.classList.add("reveal"));
 
@@ -145,3 +155,63 @@ if ("IntersectionObserver" in window) {
   // Fallback: show everything immediately (no IntersectionObserver)
   revealTargets.forEach((el) => el.classList.add("visible"));
 }
+
+// ============================================================
+// Hero Image Showcase: 3D Mouse Parallax & Badge Float
+// ============================================================
+(function () {
+  const wrapper = document.getElementById("heroImageWrapper");
+  const card = document.getElementById("heroImageCard");
+  const badgeTop = wrapper ? wrapper.querySelector(".badge-top") : null;
+  const badgeBottom = wrapper ? wrapper.querySelector(".badge-bottom") : null;
+
+  if (!wrapper || !card) return;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) return;
+
+  let mouseX = 0;
+  let mouseY = 0;
+  let currentRotX = 0;
+  let currentRotY = 0;
+  let isHovered = false;
+
+  wrapper.addEventListener("mousemove", (e) => {
+    isHovered = true;
+    const rect = wrapper.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    mouseX = -(y / rect.height) * 14;
+    mouseY = (x / rect.width) * 16;
+  });
+
+  wrapper.addEventListener("mouseleave", () => {
+    isHovered = false;
+    mouseX = 0;
+    mouseY = 0;
+  });
+
+  function animateCard() {
+    currentRotX += (mouseX - currentRotX) * 0.12;
+    currentRotY += (mouseY - currentRotY) * 0.12;
+
+    if (Math.abs(currentRotX) > 0.05 || Math.abs(currentRotY) > 0.05 || isHovered) {
+      card.style.transform = `perspective(1100px) rotateX(${currentRotX.toFixed(2)}deg) rotateY(${currentRotY.toFixed(2)}deg) translateZ(10px)`;
+
+      if (badgeTop) {
+        badgeTop.style.transform = `translate3d(${(currentRotY * 1.2).toFixed(1)}px, ${(-currentRotX * 1.2).toFixed(1)}px, 25px)`;
+      }
+      if (badgeBottom) {
+        badgeBottom.style.transform = `translate3d(${(-currentRotY * 1.2).toFixed(1)}px, ${(currentRotX * 1.2).toFixed(1)}px, 35px)`;
+      }
+    } else {
+      card.style.transform = "none";
+      if (badgeTop) badgeTop.style.transform = "none";
+      if (badgeBottom) badgeBottom.style.transform = "none";
+    }
+
+    requestAnimationFrame(animateCard);
+  }
+
+  requestAnimationFrame(animateCard);
+})();

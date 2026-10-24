@@ -1,0 +1,14 @@
+{
+  "name": "c1-gayatri-web",
+  "version": "1.0.0",
+  "description": "Dr Gayatri's Dental Clinic landing page",
+  "main": "serve.js",
+  "scripts": {
+    "dev": "node --watch serve.js",
+    "start": "node serve.js",
+    "serve": "node serve.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
